@@ -21,7 +21,7 @@ app_chatroom = APIRouter(
     
 )
 
-templates = Jinja2Templates(directory="templates")
+templates = Jinja2Templates(directory="./templates")
 
 manager = ConnectionManager()
 

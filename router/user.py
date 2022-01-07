@@ -12,7 +12,7 @@ app_user = APIRouter(
 
 
 
-@app_user.post('/user/',tags=["User"])
+@app_user.post('/',tags=["User"])
 def user_register(request:schemas.User ,db:Session = Depends(get_db)):
     new_user = models.User(username=request.username,password=Hash.bcrypt(requestpassword))
     db.add(new_user)
@@ -24,17 +24,17 @@ def user_register(request:schemas.User ,db:Session = Depends(get_db)):
     }
 
 
-@app_user.get('/user/',tags=["User"])
+@app_user.get('/',tags=["User"])
 def user_get_all(db:Session = Depends(get_db)):
     users = db.query(models.User).all()
     return users
 
-@app_user.get('/user/{username}',tags=["User"])
+@app_user.get('/{username}',tags=["User"])
 def user_get_by_username(username,db:Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == username).first()
     return user
 
-@app_user.delete('/user/{username}',tags=["User"])
+@app_user.delete('/{username}',tags=["User"])
 def user_delete_by_username(username,db:Session = Depends(get_db)):
     user = db.query(models.User).filter(models.User.username == username).delete()
     db.commit()

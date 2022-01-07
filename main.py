@@ -32,6 +32,7 @@ import JWTtoken
 from fastapi.templating import Jinja2Templates
 
 from router.user import app_user
+from router.chatroom import app_chatroom
 
 
 app = FastAPI(
@@ -48,7 +49,8 @@ origins = [
     "http://192.168.1.101:3000",
 ]
 
-app.include_router(app_user,prefix='/suer')
+app.include_router(app_user,prefix='/user')
+app.include_router(app_chatroom)
 
 models.Base.metadata.create_all(bind=engine)
 
