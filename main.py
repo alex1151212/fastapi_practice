@@ -31,9 +31,24 @@ import JWTtoken
 
 from fastapi.templating import Jinja2Templates
 
+from router.user import app_user
 
 
-app = FastAPI()
+app = FastAPI(
+    title="Fastapi Project" ,
+    description="",
+    version="Beta 1.0.0",
+    docs_url="/docs",
+    redoc_url='/redocs',
+)
+
+origins = [
+    "http://localhost",
+    "http://localhost:8080",
+    "http://192.168.1.101:3000",
+]
+
+app.include_router(app_user,prefix='/suer')
 
 models.Base.metadata.create_all(bind=engine)
 
