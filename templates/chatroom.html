@@ -15,7 +15,7 @@
         // var client_username = {{uesr}}
         var client_username = document.querySelector("#ws-id").textContent ;
         //alert(client_username)
-        var ws = new WebSocket('ws://localhost:8000/username/' + client_username + '/ws?');
+        var ws = new WebSocket('ws://192.168.1.101:8000/' + client_username + '/ws?');
         ws.onmessage = function(event) {
             var messages = document.getElementById('messages')
             var message = document.createElement('li')

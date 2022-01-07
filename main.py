@@ -11,9 +11,11 @@ from fastapi import (
     Query,
     status,
     WebSocketDisconnect,
+    Request,
+    Response
 )
+from fastapi.middleware.trustedhost import TrustedHostMiddleware
 
-from starlette.requests import Request
 from starlette.responses import RedirectResponse
 import models
 import schemas
@@ -23,7 +25,6 @@ from sqlalchemy.orm import Session
 from database import get_db ,Base,engine
 
 from typing import Optional,List
-import oauth
 from fastapi.security import OAuth2PasswordRequestForm
 from hashing import Hash
 import JWTtoken
@@ -40,9 +41,25 @@ templates = Jinja2Templates(directory="templates")
 
 manager = ConnectionManager()
 
+
+# @app.middleware("http")
+# async def Auth(
+#     request: Request,
+#     Authentication:Optional[str]=Cookie(None)
+#     ):
+#     if Authentication is None :
+#         return RedirectResponse("/login")
+
+    # user = JWTtoken.verify_token(Authentication)
+    
+    # if user is None:
+    #     HTTPException(401)
+
+
 @app.get("/root")
 def get_root():
     return {"fastapi":"test"}
+
 
 @app.get("/chat")
 async def get(
@@ -50,7 +67,6 @@ async def get(
     Authentication:Optional[str]=Cookie(None)
     ):
     
-
     user = JWTtoken.verify_token(Authentication)
     if user is None:
         raise HTTPException(401)
@@ -63,16 +79,8 @@ async def get(
         "user":user.username
     })
 
-async def get_token(
-    websocket: WebSocket,
-    token: Optional[str] = Cookie(None),
-):
-    if token is None:
-        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-    return token
 
-
-@app.websocket("/username/{username}/ws")
+@app.websocket("/{username}/ws")
 async def websocket_endpoint(websocket: WebSocket, username: str):
     await manager.connect(websocket)
     try:
@@ -91,10 +99,13 @@ def login_get_view(
     Authentication: Optional[str] = Cookie(None),
     ):
 
+    if Authentication is None:
+        return RedirectResponse("/login",307)
+
     user = JWTtoken.verify_token(Authentication)
 
-    if Authentication is None or user is None:
-        raise RedirectResponse("/login",307)
+    if user is None:
+        return RedirectResponse("/login",307)
 
     return templates.TemplateResponse("home.html",{
         "request":request,
@@ -126,10 +137,6 @@ def login_post_view(request:Request,
     response.set_cookie("Authentication",access_token)
     return response
 
-    # return templates.TemplateResponse("auth/login.html",{
-    #     "request":request,
-    # })
-
 @app.get("/signup")
 def signup_get_view(request:Request):
     return templates.TemplateResponse("auth/signup.html",{
@@ -159,14 +166,10 @@ def signup_post_view(request:Request,
     return response
 
 @app.get("/logout")
-def signup_post_view(
-    request:Request,
-    ):
+def signup_post_view():
     response =  RedirectResponse('/login',302)
     response.delete_cookie("Authentication")
     return response
-
-
 
 
 @app.post('/user/',tags=["User"])
@@ -198,30 +201,3 @@ def user_delete_by_username(username,db:Session = Depends(get_db)):
     if user :
         return "Delete Successfuly!"
     raise HTTPException(404,"User Not Found!")
-
-
-
-
-@app.post('/user_login',tags=["Login"])
-def user_login(request:OAuth2PasswordRequestForm = Depends(),db:Session=Depends(get_db)):
-    user = db.query(models.User).filter(models.User.username == request.username).first()
-    if not user :
-        raise HTTPException(404,f"Invalid Credentials")
-    
-    if not Hash.verify(user.password,request.password):
-        raise HTTPException(404,f"Incorrect password")
-
-    access_token = JWTtoken.create_access_token(data={"username":user.username,"id":user.id})
-    return {"access_token":access_token,"token_type":"bearer"}
-
-@app.post('/user/me',tags=["Login"])
-async def get_current_user(current_user:models.User = Depends(oauth.get_current_user)):
-    return current_user
-
-
-
-
-
-
-
-  
