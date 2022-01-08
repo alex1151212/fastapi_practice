@@ -14,7 +14,7 @@ app_user = APIRouter(
 
 @app_user.post('/',tags=["User"])
 def user_register(request:schemas.User ,db:Session = Depends(get_db)):
-    new_user = models.User(username=request.username,password=Hash.bcrypt(requestpassword))
+    new_user = models.User(username=request.username,password=Hash.bcrypt(request.password))
     db.add(new_user)
     db.commit()
     db.refresh(new_user)

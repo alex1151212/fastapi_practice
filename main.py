@@ -153,3 +153,74 @@ def signup_post_view():
     response.delete_cookie("Authentication")
     return response
 
+
+
+#........................................................................
+
+
+
+@app.post("/business")
+def business_register(request:schemas.Business,db:Session=Depends(get_db)):
+    new_business = models.Business(
+        business_name = request.business_name,
+        city = request.city,
+        business_description=request.business_description,
+        logo = request.logo,
+        owner = request.owner,
+    )
+    db.add(new_business)
+    db.commit()
+    db.refresh(new_business)
+    return {
+        "status":"ok",
+        "data":f"Hello {new_business.business_name}"
+    }
+
+@app.get("/business")
+def business_get_all(db=Depends(get_db)):
+    business = db.query(models.Business).all()
+    return business
+
+@app.get("/business/{business_name}")
+def business_get_all(business_name,db:Session=Depends(get_db)):
+    business = db.query(models.Business).filter(models.Business.business_name==business_name).first()
+    return business
+
+@app.delete("/business/{business_name}")
+def business_delete_by_businessName(business_name,db:Session=Depends(get_db)):
+    business = db.query(models.Business).filter(models.Business.business_name == business_name).delete()
+    db.commit()
+    if business :
+        return f"Delete Successfuly! {business}"
+    raise HTTPException(404,f"Business Not Found!{business}")
+
+@app.post("/item")
+def item_register(request:schemas.Item,db:Session=Depends(get_db)):
+    item = models.Item(
+        name = request.name,
+        category = request.category,
+        price = request.price,
+        product_image = request.product_image,
+        business = request.business,
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {
+        "status":"ok",
+        "data":f"Create Successfuly!"
+    }
+    
+@app.get('/item/{item_name}')
+def item_get_by_name(item_name,db:Session=Depends(get_db)):
+    item = db.query(models.Item).filter(models.Item.name == item_name).all()
+    if item is None :
+        raise HTTPException(404,f"item Not Found!{item_name}")
+    return item
+
+@app.get('/item/')
+def item_get_all(db:Session=Depends(get_db)):
+    item = db.query(models.Item).all()
+    if item is None :
+        raise HTTPException(404,f"item Not Found!")
+    return item

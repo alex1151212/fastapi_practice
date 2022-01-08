@@ -9,12 +9,26 @@ class User(BaseModel):
     class Config():
         orm_mode = True
 
-class TokenData(BaseModel):
-    username: Optional[str] = None
-
 class User_obj(BaseModel):
     username:str
     id:int
     
     class Config():
         orm_mode = True
+
+# class TokenData(BaseModel):
+#     username: Optional[str] = None
+
+class Business(BaseModel):
+    business_name:str
+    city:str
+    business_description:Optional[str]
+    logo:Optional[str]
+    owner:str
+
+class Item(BaseModel):
+    name:str
+    category:str
+    price:str
+    product_image:str
+    business:str
