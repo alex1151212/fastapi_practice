@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block head_ %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/2.3.0/socket.io.js"></script>
+    <script src="{{  url_for('static', path='/js/main.js') }}"></script>
+{% endblock head_ %}
+
+{% block title %}Video Chat With WebRTC{% endblock title %}
+
+{% block content %}
+
+<h1>Video Chat With WebRTC</h1>
+
+    <div id="container">
+        <section>
+            <h1>Local Tracker</h1>
+            <video id="localVideo" autoplay></video>
+        </section>
+        <section>
+            <h1>Remote Receiver</h1>
+            <video id="remoteVideo" autoplay></video>
+        </section>
+        <div class="box">
+            <button onclick="connection()">Connection</button>
+            <button onclick="calling()">Call</button>
+            <button onclick="closing()">Hang Up</button>
+        </div>
+    </div>
+
+    <script>
+        function connection(){
+            socket = io.connect("/");
+          
+            socket.emit("joinRoom", { username: "test" });
+          
+            // Socket events
+            socket.on("newUser", (data) => {
+              console.log("歡迎新人加入");
+              console.log(data);
+            });
+          
+            socket.on("userLeave", (data) => {
+              console.log("有人離開了");
+              console.log(data);
+            });
+          
+            socket.on("disconnect", () => {
+              console.log("你已經斷線");
+            });
+          
+            socket.on("offer", handleSDPOffer);
+            socket.on("answer", handleSDPAnswer);
+            socket.on("icecandidate", handleNewIceCandidate);
+            }
+            let peer = null; // RTCPeerConnection
+            let cacheStream = null; // MediaStreamTrack
+            
+            // ...略
+            
+        async function handleSDPOffer(desc) {
+            console.log("*** 收到遠端送來的offer");
+            try {
+            if (!peer) {
+              createPeerConnection(); // create RTCPeerConnection instance
+            }
+            
+            console.log(" = 設定 remote description = ");
+            await peer.setRemoteDescription(desc);
+        
+            if (!cacheStream) {
+              await addStreamProcess(); // getUserMedia & addTrack
+            }
+        
+            await createAnswer();
+            } catch (error) {
+            console.log(`Error ${error.name}: ${error.message}`);
+            }
+        }
+
+        async function handleSDPAnswer(desc) {
+            console.log("*** 遠端接受我們的offer並發送answer回來");
+            try {
+              await peer.setRemoteDescription(desc)
+            } catch (error) {
+              console.log(`Error ${error.name}: ${error.message}`);
+            }
+          }
+        async function handleNewIceCandidate(candidate) {
+            console.log(`*** 加入新取得的 ICE candidate: ${JSON.stringify(candidate)}`);
+            try {
+                await peer.addIceCandidate(candidate);
+            } catch (error) {
+                console.log(`Failed to add ICE: ${error.toString()}`);
+            }
+        }
+        // Media config
+        const mediaConstraints = {
+            audio: false,
+            video: {
+            aspectRatio: {
+                ideal: 1.333333, // 3:2 aspect is preferred
+            },
+            },
+        };
+        // ...略
+        
+        async function addStreamProcess() {
+            let errMsg = "";
+            try {
+            console.log("獲取 local media stream 中 ...");
+            const stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+        
+            const localVideo = document.getElementById("localVideo");
+            localVideo.srcObject = stream;
+            cacheStream = stream;
+            } catch (error) {
+            errMsg = "getUserStream error ===> " + error.toString();
+            throw new Error(errMsg);
+            }
+        
+            try {
+            // RTCPeerConnection.addTrack => 加入MediaStreamTrack
+            cacheStream
+                .getTracks()
+                .forEach((track) => peer.addTrack(track, cacheStream));
+            } catch (error) {
+            errMsg = "Peer addTransceiver error ===> " + error.toString();
+            throw new Error(errMsg);
+            }
+        }
+        async function calling() {
+            try {
+              if (peer) {
+                alert("你已經建立連線!");
+              } else {
+                createPeerConnection(); //建立 RTCPeerConnection
+          
+                await addStreamProcess(); // 加入多媒體數據到RTCPeerConnection instance
+              }
+            } catch (error) {
+              console.log(`Error ${error.name}: ${error.message}`);
+            }
+        }
+        function createPeerConnection() {
+            console.log("create peer connection ...");
+            peer = new RTCPeerConnection();
+            peer.onicecandidate = handleIceCandidate; // 有新的ICE candidate 時觸發
+            peer.ontrack = handleRemoteStream; // connection中發現新的 MediaStreamTrack時觸發
+            peer.onnegotiationneeded = handleNegotiationNeeded;
+        }
+        function handleIceCandidate(event) {
+            socket.emit("icecandidate", event.candidate);
+        }
+        function handleRemoteStream(event) {
+            const remoteVideo = document.getElementById("remoteVideo");
+            if (remoteVideo.srcObject !== event.streams[0]) {
+              remoteVideo.srcObject = event.streams[0];
+            }
+        }
+        async function handleNegotiationNeeded() {
+            console.log("*** handleNegotiationNeeded fired!");
+            try {
+              console.log("start createOffer ...");
+              await peer.setLocalDescription(await peer.createOffer(offerOptions));
+              sendSDPBySignaling("offer", peer.localDescription);
+            } catch (error) {
+              console.log(`Error ${error.name}: ${error.message}`);
+            }
+        }
+        function closing() {
+            console.log("Closing connection call");
+            if (!peer) return; // 防呆機制
+          
+            // 1. 移除事件監聽
+            peer.ontrack = null;
+            peer.onicecandidate = null;
+            peer.onnegotiationneeded = null;
+          
+            // 2. 停止所有在connection中的多媒體信息
+            peer.getSenders().forEach((sender) => {
+              peer.removeTrack(sender);
+            });
+          
+            // 3. 暫停video播放，並將儲存在src裡的 MediaStreamTracks 依序停止
+            const localVideo = document.getElementById("localVideo");
+            if (localVideo.srcObject) {
+              localVideo.pause();
+              localVideo.srcObject.getTracks().forEach((track) => {
+                track.stop();
+              });
+            }
+          
+            // 4. cleanup： 關閉RTCPeerConnection連線並釋放記憶體
+            peer.close();
+            peer = null;
+            cacheStream = null;
+        }
+    </script>
+{% endblock content %}

@@ -1,3 +1,4 @@
+from typing import List
 from sqlalchemy import Boolean, Column, ForeignKey, Integer,String,func, Date , DateTime,Text,Numeric
 from sqlalchemy.orm import relationship
 
@@ -9,8 +10,9 @@ class User(Base):
     id = Column(Integer, primary_key=True, index=True)
     username = Column(String(16),unique=True,nullable=False,comment="使用者名稱")
     password = Column(String(16),nullable=False,comment="密碼")
-
+    friends_id = Column()
     is_verified = Column(Boolean, default=False)
+    friends = relationship("" , )
 
     business = relationship("Business")
     #items = relationship("Item", back_populates="owner")
@@ -42,6 +44,12 @@ class Item(Base):
     product_image = Column(String(200),nullable=False,default="productDefault.jpg")
     business = Column(String,ForeignKey('business.business_name'))
 
+class Friend(Base):
+    __tablename__ = "friends"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer,nullable=False,comment="使用者id")
+    friend_id = Column(Integer,nullable=False,comment="朋友id")
 
 
 

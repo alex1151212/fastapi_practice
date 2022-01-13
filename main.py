@@ -1,5 +1,4 @@
 
-from sqlalchemy.sql.functions import user
 import uvicorn
 from fastapi import (
     FastAPI ,
@@ -20,6 +19,12 @@ from starlette.responses import RedirectResponse
 import models
 import schemas
 from websocket import ConnectionManager
+from aiortc import (
+    RTCIceCandidate,
+    RTCPeerConnection,
+    RTCSessionDescription,
+    VideoStreamTrack,
+)
 
 from sqlalchemy.orm import Session
 from database import get_db ,Base,engine
@@ -30,6 +35,7 @@ from hashing import Hash
 import JWTtoken
 
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 
 from router.user import app_user
 from router.chatroom import app_chatroom
@@ -55,7 +61,7 @@ app.include_router(app_chatroom)
 models.Base.metadata.create_all(bind=engine)
 
 templates = Jinja2Templates(directory="templates")
-
+app.mount("/static", StaticFiles(directory="./templates/static"), name="static")
 
 # @app.middleware("http")
 # async def Auth(
@@ -74,6 +80,20 @@ templates = Jinja2Templates(directory="templates")
 @app.get("/root")
 def get_root():
     return {"fastapi":"test"}
+
+manager = ConnectionManager()
+
+@app.get('/webrtc')
+def webrtc_render(request:Request):
+
+    return templates.TemplateResponse("webrtc.html",{
+        "request":request,
+    })
+@app.websocket("/socket.io")
+async def websocket_endpoint(websocket: WebSocket, username: str):
+    await manager.connect()
+
+
 
 @app.get("/")
 def login_get_view(
